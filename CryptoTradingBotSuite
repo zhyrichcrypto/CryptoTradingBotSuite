@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract CryptoTradingBotSuite is Ownable {
+    struct TradingStrategy {
+        string name;
+        address token;
+        uint256 buyPrice;
+        uint256 sellPrice;
+        bool active;
+    }
+
+    mapping(uint256 => TradingStrategy) public tradingStrategies;
+    uint256 public strategyCount;
+
+    // Events
+    event StrategyAdded(uint256 indexed strategyId, string name, address indexed token, uint256 buyPrice, uint256 sellPrice);
+    event StrategyUpdated(uint256 indexed strategyId, string name, address indexed token, uint256 buyPrice, uint256 sellPrice);
+    event StrategyRemoved(uint256 indexed strategyId);
+    event TradeExecuted(uint256 indexed strategyId, string action, uint256 amount, uint256 price);
+
+    // Add a new trading strategy
+    function addStrategy(string memory name, address token, uint256 buyPrice, uint256 sellPrice) external onlyOwner {
+        require(buyPrice > 0 && sellPrice > 0, "Prices must be greater than zero");
+
+        tradingStrategies[strategyCount] = TradingStrategy({
+            name: name,
+            token: token,
+            buyPrice: buyPrice,
+            sellPrice: sellPrice,
+            active: true
+        });
+
+        emit StrategyAdded(strategyCount, name, token, buyPrice, sellPrice);
+        strategyCount++;
+    }
+
+    // Update an existing trading strategy
+    function updateStrategy(uint256 strategyId, uint256 buyPrice, uint256 sellPrice) external onlyOwner {
+        require(strategyId < strategyCount, "Invalid strategy ID");
+        require(buyPrice > 0 && sellPrice > 0, "Prices must be greater than zero");
+
+        tradingStrategies[strategyId].buyPrice = buyPrice;
+        tradingStrategies[strategyId].sellPrice = sellPrice;
+
+        emit StrategyUpdated(strategyId, tradingStrategies[strategyId].name, tradingStrategies[strategyId].token, buyPrice, sellPrice);
+    }
+
+    // Remove a trading strategy
+    function removeStrategy(uint256 strategyId) external onlyOwner {
+        require(strategyId < strategyCount, "Invalid strategy ID");
+
+        delete tradingStrategies[strategyId];
+        strategyCount--;
+
+        emit StrategyRemoved(strategyId);
+    }
+
+    // Execute a trade based on a trading strategy
+    function executeTrade(uint256 strategyId, uint256 amount, string memory action) external onlyOwner {
+        require(strategyId < strategyCount, "Invalid strategy ID");
+
+        TradingStrategy storage strategy = tradingStrategies[strategyId];
+
+        if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("BUY"))) {
+            require(amount * strategy.buyPrice <= address(this).balance, "Insufficient balance for buy trade");
+
+            // Simulate buy trade logic here
+            // For example, transfer tokens or record transaction
+
+            emit TradeExecuted(strategyId, action, amount, strategy.buyPrice);
+        } else if (keccak256(abi.encodePacked(action)) == keccak256(abi.encodePacked("SELL"))) {
+            require(amount * strategy.sellPrice <= IERC20(strategy.token).balanceOf(address(this)), "Insufficient tokens for sell trade");
+
+            // Simulate sell trade logic here
+            // For example, transfer tokens or record transaction
+
+            emit TradeExecuted(strategyId, action, amount, strategy.sellPrice);
+        } else {
+            revert("Invalid action. Use 'BUY' or 'SELL'");
+        }
+    }
+}
